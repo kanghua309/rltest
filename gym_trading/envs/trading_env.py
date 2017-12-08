@@ -184,21 +184,8 @@ class TradingSim(object):
                  i = 1
                  while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
                      i += 1
-        #         #print ("i:",i)
-                  #areward = (self.prices[self.orgin_idx + self.step - 1] - self.prices[self.orgin_idx + self.step - i - 1]) * self.signal[self.step - 1] * -100  # + i*np.abs(signal[time_step - 1])/10.0
-        #         # for j in range(0,i):
-        #         #     # if self.mkt_retrns[self.step -j ] > 10:
-        #         #     #     print ("j",j,self.mkt_retrns[self.step -j ])
-        #         #     areward += self.mkt_retrns[self.step -1 -j]
-        #         #     #print(" be reward:",areward)
-                 areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * -100  # + i*np.abs(signal[time_step - 1])/10.0
-        #
-        #     else:
-        #         #print self.signal[self.step],self.signal[self.step - 1]
-        #         pass
-        #     #areward = areward * self.signal[self.step - 1] * -100
-        #
-             #print "-------------------------------------------- adjust reward", areward
+                 areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
+
              reward = areward
         #########################################################################################################################################################
         # reward = reward * 100
