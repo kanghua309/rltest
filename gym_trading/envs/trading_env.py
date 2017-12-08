@@ -19,6 +19,9 @@ logging.basicConfig()
 log.setLevel(logging.INFO)
 log.info('%s logger started.', __name__)
 
+from sklearn import metrics, preprocessing
+
+
 ret = lambda x, y: np.log(y / x)  # Log return
 zscore = lambda x: (x - x.mean()) / x.std()  # zscore
 
@@ -68,11 +71,12 @@ class ZiplineEnvSrc(object):
         range = (pd.Timestamp(end) - pd.Timestamp(start)).days
         x = np.arange(range)
         # ma[0] = np.sin(x*0.75)*70 + np.cos(x*3)*50 + x*0.5 + np.random.normal(scale=20, size=(len(x),)) + 1000
-        ma[0] = np.sin(x * 0.75) * 70 + 1000
-        assert (ma[0] > 0).all(), "negative price"
-        #df['return'] = np.insert(np.diff(ma[0]), 0, 0) / ma[0]
-        df['return'] = np.insert(np.diff(ma[0]), 0, 0) / ma[0]
-
+        ma[0] = np.sin(x * 1)
+        #ma[0] = np.sin(x)
+        #assert (ma[0] > 0).all(), "negative price"
+        df['return'] = np.insert(np.diff(ma[0]), 0, 0)
+        #df['return'] = zscore(np.insert(np.diff(ma[0]), 0, 0))
+        #print "df return",df['return']
         self.columns = ['return']
         for i, p in enumerate(periods):
             ma[i + 1] = ta.EMA(ma[0], timeperiod=p) / ma[0] - 1.0
@@ -103,6 +107,7 @@ class ZiplineEnvSrc(object):
             self.idx = np.random.randint(low=0, high=len(self.data.index) - self.days)
         else:
             self.idx = len(self.data.index) - self.days
+        #self.idx = 0
         self.step = 0
         self.orgin_idx = self.idx  # for render , so record it
         self.reset_start_day = str(self.data.index[self.orgin_idx -1 ])[:10]
@@ -153,7 +158,7 @@ class TradingSim(object):
         self.signal.fill(0)
 
 
-    def _step(self, action, retrn):
+    def _step(self, action, retrn, prices):
         bod_posn = 0.0 if self.step == 0 else self.posns[self.step - 1]
         bod_nav = 1.0 if self.step == 0 else self.navs[self.step - 1]
         mkt_nav = 1.0 if self.step == 0 else self.mkt_nav[self.step - 1]
@@ -170,45 +175,53 @@ class TradingSim(object):
         self.strat_retrns[self.step] = reward
 
         ########################################################################################################################################################
-        #print "step----:",self.step
+        #print "step----:",self.step," retrn:", retrn,action,bod_posn,self.costs[self.step]," reward:",reward
         areward = 0
-        self.signal[self.step] = self.posns[self.step] * 100
-        if  self.step > 1:
-            if self.signal[self.step] != self.signal[self.step - 1]:
-                i = 1
-                while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
-                    i += 1
-                #print ("i:",i)
-                #areward = (self.prices[self.orgin_idx + self.step - 1] - self.prices[self.orgin_idx + self.step - i - 1]) * self.signal[self.step - 1] * -100  # + i*np.abs(signal[time_step - 1])/10.0
-                for j in range(0,i+1):
-                    #print ("j",j,self.mkt_retrns[self.step -j ])
-                    areward += self.mkt_retrns[self.step -j ]
-                    #print("reward:",areward)
-                areward = areward * self.signal[self.step - 1] *-100
-                #print "-------------------------------------------- adjust reward", areward
-
+        self.signal[self.step] = self.posns[self.step] * 10
+        # #print self.signal[self.step],self.posns[self.step],action
+        if  self.step > 0:
+             if self.signal[self.step] != self.signal[self.step - 1]:
+                 i = 1
+                 while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
+                     i += 1
+        #         #print ("i:",i)
+                  #areward = (self.prices[self.orgin_idx + self.step - 1] - self.prices[self.orgin_idx + self.step - i - 1]) * self.signal[self.step - 1] * -100  # + i*np.abs(signal[time_step - 1])/10.0
+        #         # for j in range(0,i):
+        #         #     # if self.mkt_retrns[self.step -j ] > 10:
+        #         #     #     print ("j",j,self.mkt_retrns[self.step -j ])
+        #         #     areward += self.mkt_retrns[self.step -1 -j]
+        #         #     #print(" be reward:",areward)
+                 areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * -100  # + i*np.abs(signal[time_step - 1])/10.0
+        #
+        #     else:
+        #         #print self.signal[self.step],self.signal[self.step - 1]
+        #         pass
+        #     #areward = areward * self.signal[self.step - 1] * -100
+        #
+             #print "-------------------------------------------- adjust reward", areward
+             reward = areward
         #########################################################################################################################################################
         # reward = reward * 100
 
         if self.step != 0:
             self.navs[self.step] = bod_nav * (1 + self.strat_retrns[self.step - 1])
-            self.mkt_nav[self.step] = mkt_nav * (1 + self.mkt_retrns[self.step - 1])
-        # if self.step > 0:
-        #     print(
-        #         "debug ----- :step:%d,retrn:%f,action:%d,bod_posn,%d,posn:%d,trades:%d,trade_costs_pct:%f,costs:%f,reward:%f,bod_nav:%f,mkt_nav:%f,areward:%f" % (
-        #             self.step,
-        #             retrn,
-        #             action,
-        #             bod_posn,
-        #             self.posns[self.step],
-        #             self.trades[self.step],
-        #             trade_costs_pct,
-        #             self.costs[self.step],
-        #             reward,
-        #             self.navs[self.step],
-        #             self.mkt_nav[self.step],
-        #             areward
-        #         ))
+            self.mkt_nav[self.step] = mkt_nav * (self.mkt_retrns[self.step - 1])
+            #print mkt_nav,self.mkt_retrns[self.step - 1], self.mkt_nav[self.step]
+        if self.step == 100:
+            print(
+                "debug ----- :step:%d,retrn:%f,action:%d,bod_posn,%d,posn:%d,trades:%d,trade_costs_pct:%f,costs:%f,reward:%f,bod_nav:%f,mkt_nav:%f," % (
+                    self.step,
+                    retrn,
+                    action,
+                    bod_posn,
+                    self.posns[self.step],
+                    self.trades[self.step],
+                    trade_costs_pct,
+                    self.costs[self.step],
+                    reward,
+                    self.navs[self.step],
+                    self.mkt_nav[self.step],
+                ))
 
 
 
@@ -217,7 +230,7 @@ class TradingSim(object):
         self.step += 1
 
 
-        return areward , info
+        return reward  , info
 
     def to_df(self):
         """returns internal state in new dataframe """
@@ -295,7 +308,7 @@ class TradingEnv(gym.Env):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         observation, done = self.src._step()
         yret = observation[0]  # RETURN
-        reward, info = self.sim._step(action, yret)
+        reward, info = self.sim._step(action, yret,self.src.prices.values[self.src.orgin_idx:])
         return observation, reward, done, info
 
     def _reset(self):

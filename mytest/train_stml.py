@@ -173,7 +173,7 @@ class DQN:
     '-t',
     '--train_round',
     type=int,
-    default=200,
+    default=100,
     help='train round',
 )
 

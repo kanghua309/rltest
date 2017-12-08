@@ -13,12 +13,19 @@ import pandas as pd
 from keras.layers.core import Dense
 from keras.models import Sequential
 from keras.optimizers import Adam
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation
+from keras.optimizers import RMSprop
+
 
 PLOT_AFTER_ROUND = 1
 log = logging.getLogger(__name__)
 logging.basicConfig()
 log.setLevel(logging.INFO)
 log.info('%s logger started.', __name__)
+
+np.random.seed(1335)  # for reproducibility
+
 class DQN:
     def __init__(self, env):
         self.env = env
@@ -37,15 +44,31 @@ class DQN:
         self.target_model = self.create_model()
 
 
+    # def create_model(self):
+    #     model = Sequential()
+    #     print 'state_shape:', self.env.observation_space.shape
+    #     model.add(Dense(64, input_dim=self.state_size, activation="relu" )
+    #     model.add(Dense(64, activation="relu"))
+    #     model.add(Dense(64, activation="relu"))
+    #     model.add(Dense(self.env.action_space.n))
+    #     model.compile(loss="mean_squared_error",
+    #                   optimizer=Adam(lr=self.learning_rate))
+    #     return model
     def create_model(self):
         model = Sequential()
-        print 'state_shape:', self.env.observation_space.shape
-        model.add(Dense(4, input_dim=self.state_size, activation="relu"))
-        model.add(Dense(4, activation="relu"))
-        model.add(Dense(4, activation="relu"))
-        model.add(Dense(self.env.action_space.n))
-        model.compile(loss="mean_squared_error",
-                      optimizer=Adam(lr=self.learning_rate))
+        model.add(Dense(4, init='lecun_uniform', input_dim=self.state_size))
+        model.add(Activation('relu'))
+        # model.add(Dropout(0.2)) I'm not using dropout in this example
+
+        model.add(Dense(4, init='lecun_uniform'))
+        model.add(Activation('relu'))
+        # model.add(Dropout(0.2))
+
+        model.add(Dense(self.env.action_space.n, init='lecun_uniform'))
+        model.add(Activation('linear'))  # linear output so we can have range of real-valued outputs
+
+        rms = RMSprop()
+        model.compile(loss='mse', optimizer=rms)
         return model
 
 
@@ -62,6 +85,8 @@ class DQN:
         return np.argmax(self.model.predict(state)[0])
 
     def remember(self, state, action, reward, new_state, done):
+        if reward == 0.0 and action == 1:#TODO
+            return
         self.memory.append([state, action, reward, new_state, done])
 
     def replay(self):
@@ -209,15 +234,15 @@ def execute(symbol, begin, end, days, train_round, plot, model_path):
                 if episode % 10 == 0:
                     log.info('year #%6d, sim ret: %8.4f, mkt ret: %8.4f, net: %8.4f', episode,
                              simrors[episode], mktrors[episode], simrors[episode] - mktrors[episode])
-                    if episode > 10:
+                    if episode > 50:
                         vict = pd.DataFrame({'sim': simrors[episode - 10:episode],
                                              'mkt': mktrors[episode - 10:episode]})
                         vict['net'] = vict.sim - vict.mkt
                         log.info('vict:%f', vict.net.mean())
-                        if vict.net.mean() > 2:
-                            victory = True
-                            log.info('Congratulations, Warren Buffet!  You won the trading game ', )
-                            break
+                        # if vict.net.mean() > 1:
+                        #     victory = True
+                        #     log.info('Congratulations, Warren Buffet!  You won the trading game ', )
+                        #     break
 
     import os
     log.info("Completed in %d trials , save it as %s", episode,
