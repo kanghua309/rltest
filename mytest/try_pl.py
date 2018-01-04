@@ -68,7 +68,7 @@ import gym_trading  #必须引入才自动注册
 
 
 def execute(symbol, begin, end, days, plot, model_path,random):
-    print model_path
+    print(model_path)
     model = load_model(model_path)
     env = gym.make('trading-v0').env
     env.initialise(symbol=symbol, start=begin, end=end, days=days, random = random)
@@ -76,13 +76,13 @@ def execute(symbol, begin, end, days, plot, model_path,random):
     state = env.reset()
     done = False
     while not done:
-        state = state.reshape(1, state_size)
-        #state = state.reshape(1, 1, state_size)
+        #state = state.reshape(1, state_size)
+        state = state.reshape(1, 1, state_size)  #LSTM
         qval = model.predict(state, batch_size=1)
         action = (np.argmax(qval))
         state, _, done, info = env.step(action)
 
-        # log.info("%s,%s,%s,%s",state, _, done, info)
+        log.info("%s,%s,%s,%s",state, _, done, info)
         # log.info("\n%s", env.sim.to_df())
         if plot:
            env.render()

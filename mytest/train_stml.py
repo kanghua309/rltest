@@ -195,7 +195,7 @@ class DQN:
 )
 
 def execute(symbol,begin,end,days,train_round,plot,model_path):
-    print "---------------------------------------1 "
+    print ("---------------------------------------1 ")
     env = gym.make('trading-v0').env
     env.initialise(symbol=symbol, start=begin, end=end, days=days)
 
@@ -233,13 +233,13 @@ def execute(symbol,begin,end,days,train_round,plot,model_path):
                 mktrors[trial] = df.mkt_nav.values[-1] - 1
                 log.info('total step:%6d, sim ret: %8.4f, mkt ret: %8.4f, net: %8.4f', i,
                         simrors[trial], mktrors[trial], simrors[trial] - mktrors[trial])
-                if trial > 50:
-                    vict = pd.DataFrame({'sim': simrors[trial - 50:trial],
-                                         'mkt': mktrors[trial - 50:trial]})
+                if trial > 10:
+                    vict = pd.DataFrame({'sim': simrors[trial - 10:trial],
+                                         'mkt': mktrors[trial - 10:trial]})
                     vict['net'] = vict.sim - vict.mkt
                     log.info('vict:%f',vict.net.mean())
 
-                    if vict.net.mean() > 0.4:
+                    if vict.net.mean() > 0.2:
                         victory = True
                         log.info('Congratulations, Warren Buffet!  You won the trading game.')
                 break

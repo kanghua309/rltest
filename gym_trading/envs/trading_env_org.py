@@ -5,6 +5,7 @@ import tempfile
 
 import gym
 import matplotlib
+
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,14 +16,12 @@ from talib.abstract import *
 import talib as ta
 from collections import deque
 
-
 log = logging.getLogger(__name__)
 logging.basicConfig()
 log.setLevel(logging.INFO)
 log.info('%s logger started.', __name__)
 
 from sklearn import metrics, preprocessing
-
 
 ret = lambda x, y: np.log(y / x)  # Log return
 zscore = lambda x: (x - x.mean()) / x.std()  # zscore
@@ -32,7 +31,7 @@ class ZiplineEnvSrc(object):
     # Quandl-based implementation of a TradingEnv's data source.
     # Pulls data from Quandl, preps for use by TradingEnv and then
     # acts as data provider for each new episode.
-    def __init__(self, symbol,start=1, end=500, days=252, scale=True):
+    def __init__(self, symbol, start=1, end=500, days=252, scale=True):
         self.symbol = symbol
         self.days = days + 1
         self.start = start
@@ -68,51 +67,26 @@ class ZiplineEnvSrc(object):
         #
         # df.dropna(axis=0, inplace=True)
         df = pd.DataFrame()
-        periods = (2,4,6,8,10,12,15,20,25)  # moving average periods
+        periods = (2, 4, 6, 8, 10, 12, 15, 20, 25)  # moving average periods
         ma = [None] * (1 + len(periods))
-
-        #####################################################################
-        base = 1000
-        n = 2000
-        noise = 0.00001
-
-        w1 = 500./ n
-        #w1 = 1
-        #self.days = n//2 + 1
-        range = n
-        #range = (pd.Timestamp(end) - pd.Timestamp(start)).days
-
+        range = (pd.Timestamp(end) - pd.Timestamp(start)).days
         x = np.arange(range)
         # ma[0] = np.sin(x*0.75)*70 + np.cos(x*3)*50 + x*0.5 + np.random.normal(scale=20, size=(len(x),)) + 1000
-        ret  = np.sin(x*w1)*0.3 +  base*np.clip(np.random.normal(scale=noise,size=(n,)),-0.02,0.02)
-        print("***************")
-        y = np.empty(n)
-        y[0] = base
-        for i in range(1,n):
-            print("------")
-            y[i] = y[i-1] + ret[i]
-
-        ma[0] = y
-
-        ######################################################################
-        #ma[0] = np.sin(x)
-        #assert (ma[0] > 0).all(), "negative price"
-        #print(ma[0])
-        #print(np.diff(ma[0]))
+        ma[0] = np.sin(x * 1)
+        # ma[0] = np.sin(x)
+        # assert (ma[0] > 0).all(), "negative price"
         df['return'] = np.insert(np.diff(ma[0]), 0, 0)
-        #df['return'] = np.insert(ma[0], 0, 0)
-        #print("df ",np.shape(df))
-        #df['return'] = zscore(np.insert(np.diff(ma[0]), 0, 0))
-        #print "df return",df['return']
-        # self.columns = ['return']
-        # for i, p in enumerate(periods):
-        #     ma[i + 1] = ta.EMA(ma[0], timeperiod=p) / ma[0] - 1.0
-        #     df['ma' + str(p)] = ma[i + 1]
-        #     self.columns.append('ma' + str(p))
-        # for i, p in enumerate(periods):
-        #     ma[i + 1] = ta.RSI(ma[0], timeperiod=p)* 0.01 - 0.5
-        #     df['rsi' + str(p)] = ma[i + 1]
-        #     self.columns.append('rsi' + str(p))
+        # df['return'] = zscore(np.insert(np.diff(ma[0]), 0, 0))
+        # print "df return",df['return']
+        self.columns = ['return']
+        for i, p in enumerate(periods):
+            ma[i + 1] = ta.EMA(ma[0], timeperiod=p) / ma[0] - 1.0
+            df['ma' + str(p)] = ma[i + 1]
+            self.columns.append('ma' + str(p))
+        for i, p in enumerate(periods):
+            ma[i + 1] = ta.RSI(ma[0], timeperiod=p) * 0.01 - 0.5
+            df['rsi' + str(p)] = ma[i + 1]
+            self.columns.append('rsi' + str(p))
 
         df['price'] = ma[0]
         df.dropna(axis=0, inplace=True)
@@ -126,19 +100,17 @@ class ZiplineEnvSrc(object):
         self.orgin_idx = 0
         self.prices = df['price']
 
-
-    def reset(self,random):
+    def reset(self, random):
         if random == True:
             self.idx = np.random.randint(low=0, high=len(self.data.index) - self.days)
         else:
-            self.idx = 0
-        #self.idx = 0
+            self.idx = len(self.data.index) - self.days
+        # self.idx = 0
         self.step = 0
         self.orgin_idx = self.idx  # for render , so record it
-        self.reset_start_day = str(self.data.index[self.orgin_idx -1 ])[:10]
-        self.reset_end_day = str(self.data.index[self.orgin_idx + self.days -1 ])[:10]
-        #print(self.reset_start_day,self.reset_end_day)
-
+        self.reset_start_day = str(self.data.index[self.orgin_idx - 1])[:10]
+        self.reset_end_day = str(self.data.index[self.orgin_idx + self.days - 1])[:10]
+        # print(self.reset_start_day,self.reset_end_day)
 
     def _step(self):
         obs = self.data.iloc[self.idx].as_matrix()
@@ -146,7 +118,6 @@ class ZiplineEnvSrc(object):
         self.step += 1
         done = self.step >= self.days
         return obs, done
-
 
 
 class TradingSim(object):
@@ -157,7 +128,6 @@ class TradingSim(object):
         self.trading_cost_bps = trading_cost_bps
         self.time_cost_bps = time_cost_bps
         self.steps = steps
-        #self.steps = 200 #TODO
         # change every step
         self.step = 0
         self.actions = np.zeros(self.steps)
@@ -170,7 +140,6 @@ class TradingSim(object):
         self.mkt_retrns = np.zeros(self.steps)
         self.signal = np.zeros(self.steps)
 
-
     def reset(self, train=True):
         self.step = 0
         self.actions.fill(0)
@@ -182,7 +151,6 @@ class TradingSim(object):
         self.trades.fill(0)
         self.mkt_retrns.fill(0)
         self.signal.fill(0)
-
 
     def _step(self, action, retrn, prices):
         bod_posn = 0.0 if self.step == 0 else self.posns[self.step - 1]
@@ -201,25 +169,26 @@ class TradingSim(object):
         self.strat_retrns[self.step] = reward
 
         ########################################################################################################################################################
-        #print "step----:",self.step," retrn:", retrn,action,bod_posn,self.costs[self.step]," reward:",reward
-        # areward = 0
-        # self.signal[self.step] = self.posns[self.step] * 10
-        # # #print self.signal[self.step],self.posns[self.step],action
-        # if  self.step > 0:
-        #      if self.signal[self.step] != self.signal[self.step - 1]:
-        #          i = 1
-        #          while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
-        #              i += 1
-        #          areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
-        #
-        #      reward = areward
+        # print "step----:",self.step," retrn:", retrn,action,bod_posn,self.costs[self.step]," reward:",reward
+        areward = 0
+        self.signal[self.step] = self.posns[self.step] * 10
+        # #print self.signal[self.step],self.posns[self.step],action
+        if self.step > 0:
+            if self.signal[self.step] != self.signal[self.step - 1]:
+                i = 1
+                while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
+                    i += 1
+                areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[
+                    self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
+
+            reward = areward
         #########################################################################################################################################################
         # reward = reward * 100
 
         if self.step != 0:
             self.navs[self.step] = bod_nav * (1 + self.strat_retrns[self.step - 1])
             self.mkt_nav[self.step] = mkt_nav * (self.mkt_retrns[self.step - 1])
-            #print mkt_nav,self.mkt_retrns[self.step - 1], self.mkt_nav[self.step]
+            # print mkt_nav,self.mkt_retrns[self.step - 1], self.mkt_nav[self.step]
         if self.step == 100:
             print(
                 "debug ----- :step:%d,retrn:%f,action:%d,bod_posn,%d,posn:%d,trades:%d,trade_costs_pct:%f,costs:%f,reward:%f,bod_nav:%f,mkt_nav:%f," % (
@@ -236,14 +205,11 @@ class TradingSim(object):
                     self.mkt_nav[self.step],
                 ))
 
-
-
         info = {'reward': reward, 'nav': self.navs[self.step], 'costs': self.costs[self.step],
                 'pos': self.posns[self.step]}
         self.step += 1
 
-
-        return reward  , info
+        return reward, info
 
     def to_df(self):
         """returns internal state in new dataframe """
@@ -294,9 +260,8 @@ class TradingEnv(gym.Env):
         self.inited = False;
         pass
 
-    def initialise(self, symbol, start, end, days ,random = True):
+    def initialise(self, symbol, start, end, days, random=True):
         self.days = days
-        self.days = 1000 #TODO
         self.src = ZiplineEnvSrc(symbol=symbol, start=start, end=end, days=self.days)
         self.sim = TradingSim(steps=self.days, trading_cost_bps=1e-4, time_cost_bps=1e-4)  # TODO FIX
 
@@ -318,11 +283,11 @@ class TradingEnv(gym.Env):
 
     def _step(self, action):
         if self.inited == False: return
-        #print "action:",action
+        # print "action:",action
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
         observation, done = self.src._step()
         yret = observation[0]  # RETURN
-        reward, info = self.sim._step(action, yret,self.src.prices.values[self.src.orgin_idx:])
+        reward, info = self.sim._step(action, yret, self.src.prices.values[self.src.orgin_idx:])
         return observation, reward, done, info
 
     def _reset(self):
@@ -373,7 +338,7 @@ class TradingEnv(gym.Env):
         return plt
 
     def _render(self, mode='human', close=False):
-        print("---------------------",self.inited)
+        print("---------------------", self.inited)
         if self.inited == False: return
         if self.render_on == 0:
             # self.fig = plt.figure(figsize=(10, 4))
@@ -413,7 +378,7 @@ class TradingEnv(gym.Env):
 
         """ run provided strategy the specified # of times, possibly
             writing a log and possibly returning a dataframe summarizing activity.
-    
+
             Note that writing the log is expensive and returning the df is moreso.  
             For training purposes, you might not want to set both.
         """

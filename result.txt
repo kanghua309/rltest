@@ -1,0 +1,13 @@
+测试记录
+
+测试 rl + stml + dqn + 加强reowrd + muti talib index  + 无自相关 +  noise 00001 + 2000，1000  ,w = 500/n — 波动越频繁，越容易学习（比如w = 5/n 就难点了）、
+pass
+
+测试 rl + stml + dqn +  reowrd + muti talib index  +  无自相关 + noise 00001 + 2000，1000  ,w = 500/n
+pass
+
+测试 rl + stml + dqn +  reowrd + simple price +  无自相关 + noise 00001 + 2000，1000  ,w = 500/n
+pass
+
+
+测试 rl + stml + dqn +  reowrd + simple price +  自相关 +  noise 00001 + 2000，1000  ,w = 500/n
