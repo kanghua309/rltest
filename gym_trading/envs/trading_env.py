@@ -79,18 +79,18 @@ class ZiplineEnvSrc(object):
         w1 = 500./ n
         #w1 = 1
         #self.days = n//2 + 1
-        range = n
+        _range = n
         #range = (pd.Timestamp(end) - pd.Timestamp(start)).days
 
-        x = np.arange(range)
+        x = np.arange(_range)
         # ma[0] = np.sin(x*0.75)*70 + np.cos(x*3)*50 + x*0.5 + np.random.normal(scale=20, size=(len(x),)) + 1000
         ret  = np.sin(x*w1)*0.3 +  base*np.clip(np.random.normal(scale=noise,size=(n,)),-0.02,0.02)
         print("***************")
         y = np.empty(n)
         y[0] = base
-        for i in range(1,n):
-            print("------")
-            y[i] = y[i-1] + ret[i]
+        print("??????")
+        for j in range(1,n):
+            y[j] = y[j-1] + ret[j]
 
         ma[0] = y
 
