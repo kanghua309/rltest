@@ -239,7 +239,7 @@ def execute(symbol,begin,end,days,train_round,plot,model_path):
                     vict['net'] = vict.sim - vict.mkt
                     log.info('vict:%f',vict.net.mean())
 
-                    if vict.net.mean() > 0.2:
+                    if vict.net.mean() > 10.2:
                         victory = True
                         log.info('Congratulations, Warren Buffet!  You won the trading game.')
                 break

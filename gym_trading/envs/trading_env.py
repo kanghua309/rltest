@@ -68,13 +68,13 @@ class ZiplineEnvSrc(object):
         #
         # df.dropna(axis=0, inplace=True)
         df = pd.DataFrame()
-        periods = (2,4,6,8,10,12,15,20,25)  # moving average periods
+        periods = (2,4,6,8,10,12,15,20,25,50,100,200)  # moving average periods
         ma = [None] * (1 + len(periods))
 
         #####################################################################
         base = 1000
         n = 2000
-        noise = 0.00001
+        noise = 0.001
 
         w1 = 500./ n
         #w1 = 1
@@ -104,15 +104,15 @@ class ZiplineEnvSrc(object):
         #print("df ",np.shape(df))
         #df['return'] = zscore(np.insert(np.diff(ma[0]), 0, 0))
         #print "df return",df['return']
-        # self.columns = ['return']
-        # for i, p in enumerate(periods):
-        #     ma[i + 1] = ta.EMA(ma[0], timeperiod=p) / ma[0] - 1.0
-        #     df['ma' + str(p)] = ma[i + 1]
-        #     self.columns.append('ma' + str(p))
-        # for i, p in enumerate(periods):
-        #     ma[i + 1] = ta.RSI(ma[0], timeperiod=p)* 0.01 - 0.5
-        #     df['rsi' + str(p)] = ma[i + 1]
-        #     self.columns.append('rsi' + str(p))
+        self.columns = ['return']
+        for i, p in enumerate(periods):
+            ma[i + 1] = ta.EMA(ma[0], timeperiod=p) / ma[0] - 1.0
+            df['ma' + str(p)] = ma[i + 1]
+            self.columns.append('ma' + str(p))
+        for i, p in enumerate(periods):
+            ma[i + 1] = ta.RSI(ma[0], timeperiod=p)* 0.01 - 0.5
+            df['rsi' + str(p)] = ma[i + 1]
+            self.columns.append('rsi' + str(p))
 
         df['price'] = ma[0]
         df.dropna(axis=0, inplace=True)
@@ -202,17 +202,17 @@ class TradingSim(object):
 
         ########################################################################################################################################################
         #print "step----:",self.step," retrn:", retrn,action,bod_posn,self.costs[self.step]," reward:",reward
-        # areward = 0
-        # self.signal[self.step] = self.posns[self.step] * 10
-        # # #print self.signal[self.step],self.posns[self.step],action
-        # if  self.step > 0:
-        #      if self.signal[self.step] != self.signal[self.step - 1]:
-        #          i = 1
-        #          while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
-        #              i += 1
-        #          areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
-        #
-        #      reward = areward
+        areward = 0
+        self.signal[self.step] = self.posns[self.step] * 10
+        # #print self.signal[self.step],self.posns[self.step],action
+        if  self.step > 0:
+             if self.signal[self.step] != self.signal[self.step - 1]:
+                 i = 1
+                 while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
+                     i += 1
+                 areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
+
+             reward = areward
         #########################################################################################################################################################
         # reward = reward * 100
 

@@ -11,3 +11,18 @@ pass
 
 
 测试 rl + stml + dqn +  reowrd + simple price +  自相关 +  noise 00001 + 2000，1000  ,w = 500/n
+pass
+
+
+测试 rl + stml + dqn +  reowrd + simple price +  自相关 +  noise 001 + 2000，1000  ,w = 500/n
+fail
+
+
+测试 rl + stml + dqn + 加强 reowrd + simple price +  自相关 +  noise 001 + 2000，1000  ,w = 500/n
+fail
+
+测试 rl + stml + dqn + 加强 reowrd + muti talib index  +  自相关 +  noise 001 + 2000，1000  ,w = 500/n
+fail
+
+测试 rl + stml + dqn + 加强 reowrd + muti talib index  +  自相关 +  noise 0001 + 2000，1000  ,w = 500/n
+pass
