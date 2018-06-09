@@ -140,14 +140,14 @@ class DQN:
 @click.option(
     '-s',
     '--symbol',
-    default='000001',
+    default='al',
     show_default=True,
-    help='given stock code ',
+    help='given future code ',
 )
 @click.option(
     '-b',
     '--begin',
-    default='2012-09-01',
+    default='2017-09-01',
     show_default=True,
     help='The begin date of the train.',
 )
@@ -155,7 +155,7 @@ class DQN:
 @click.option(
     '-e',
     '--end',
-    default='2017-09-01',
+    default='2017-09-05',
     show_default=True,
     help='The end date of the train.',
 )
@@ -196,10 +196,10 @@ class DQN:
 def execute(symbol,begin,end,days,train_round,plot,model_path):
     print ("---------------------------------------1 ")
     env = gym.make('trading-v0').env
-    env.initialise(symbol=symbol, start=begin, end=end, days=days)
+    env.initialise(symbol=symbol, start=begin, end=end)
 
     trials = train_round
-    trial_len = env.src.days
+    trial_len = env.src.get_count()
     dqn_agent = DQN(env=env)
     simrors = np.zeros(trials)
     mktrors = np.zeros(trials)

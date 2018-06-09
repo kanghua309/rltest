@@ -90,8 +90,10 @@ class ZiplineEnvSrc(object):
 
         df['price'] = ma[0]
         df.dropna(axis=0, inplace=True)
+        print("before reset")
+        print(df.head(10))
         df.reset_index(drop=True, inplace=True)
-
+        
         self.min_values = df.min(axis=0)
         self.max_values = df.max(axis=0)
         self.data = df

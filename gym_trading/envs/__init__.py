@@ -1,3 +1,3 @@
-from gym_trading.envs.trading_env import TradingEnv
+from gym_trading.envs.future_trading_env import TradingEnv
 
 
