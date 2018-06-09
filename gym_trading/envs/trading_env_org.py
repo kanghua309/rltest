@@ -207,8 +207,7 @@ class TradingSim(object):
                     self.mkt_nav[self.step],
                 ))
 
-        info = {'reward': reward, 'nav': self.navs[self.step], 'costs': self.costs[self.step],
-                'pos': self.posns[self.step]}
+        info = {'reward': reward, 'nav': self.navs[self.step], 'costs': self.costs[self.step], 'pos': self.posns[self.step]}
         self.step += 1
 
         return reward, info

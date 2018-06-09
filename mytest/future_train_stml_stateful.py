@@ -11,7 +11,6 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.layers.recurrent import LSTM
 from keras.optimizers import RMSprop, Adam
 import logging
-from keras.layers import LSTM, GRU
 
 from collections import deque
 from keras import regularizers
@@ -28,7 +27,7 @@ log.info('%s logger started.',__name__)
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Hide messy TensorFlow warnings
 warnings.filterwarnings("ignore")  # Hide messy Numpy warnings
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 pd.set_option('display.width', 2000)
 
 PLOT_AFTER_ROUND=1
@@ -39,6 +38,20 @@ def constrainedCrossEntropy(ytrue, ypred):
   ypred = T.clip(ypred, 0.001, 0.9999)
   return losses.categorical_crossentropy(ytrue, ypred)
 
+from keras.callbacks import ModelCheckpoint, EarlyStopping, Callback, ReduceLROnPlateau
+
+class CheckBy(Callback):
+    def __init__(self):
+        super(Callback, self).__init__()
+        self.counter = 0
+
+    def on_batch_begin(self, batch, logs={}):
+        if self.counter % 2048 == 0:  #stateful lstm 需要手动reset
+            self.model.reset_states()
+        self.counter += 1
+callbacks = [CheckBy()]
+
+from keras.layers import LSTM, GRU
 
 class DQN:
     def __init__(self, env):
@@ -50,18 +63,19 @@ class DQN:
         self.epsilon_decay = 0.9995 #FIX
         self.learning_rate = 0.00001
         self.tau = .125
-        self.batch_size = 128 # 64 TODO
+        self.batch_size = 1 # 64 TODO?
         self.state_size = self.env.observation_space.shape[0]
-
+        print("state size :",self.state_size)
         self.model = self.create_model()
         self.target_model = self.create_model()
 
+ 
     def create_model(self):
         model = Sequential()
         model.add(GRU(64,
-                       input_shape=(1, self.state_size),
+                       batch_input_shape=(1, 1, self.state_size),
                        return_sequences=False,
-                       stateful=False))
+                       stateful=True))
         # model.add(Dropout(0.5))
         # model.add(LSTM(64,
         #                input_shape=(1, self.state_size),
@@ -118,7 +132,8 @@ class DQN:
                               batch_size=self.batch_size,
                               epochs=1,
                               shuffle=False, #FIX IT
-                              verbose=False)
+                              verbose=False,
+                              callbacks=callbacks)
 
 
     def _get_batches(self):

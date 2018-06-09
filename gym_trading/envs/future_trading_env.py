@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-
+import bcolz
+import pandas as pd
+import numpy as np
+import os
+import warnings
 import logging
 import tempfile
 
@@ -11,18 +15,25 @@ import numpy as np
 import pandas as pd
 from gym import spaces
 from gym.utils import seeding
-from talib.abstract import *
-import talib as ta
+#from talib.abstract import *
+#import talib as ta
 from collections import deque
 import bcolz
 import os
+
 
 log = logging.getLogger(__name__)
 logging.basicConfig()
 log.setLevel(logging.INFO)
 log.info('%s logger started.', __name__)
 
-from sklearn import metrics, preprocessing
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # Hide messy TensorFlow warnings
+warnings.filterwarnings("ignore")  # Hide messy Numpy warnings
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+pd.set_option('display.width', 2000)
+
+
+np.random.seed(7)
 
 fdir = "./future"
 g_symbol = 'al'
@@ -36,11 +47,11 @@ def load_data(symbol, start, end):
         assert (False)
     print(df.head(2))
     print(df.tail(2))
-    df = df[(df.datatime >= start) & (df.datatime < end)]
+    df = df[(df.datetime >= start) & (df.datetime < end)]
     df = df[(df.hour > 8) & (df.hour < 16)]               #保留日盘数据
     print(df.head(3))
     print(df.tail(3))
-    feathers = df.drop(['datatime', 'contract'], axis=1)
+    feathers = df.drop(['datetime', 'contract'], axis=1)
     return feathers
 
 scaler = lambda x: ((x - x.min())/(x.max() - x.min())) * 2 - 1
@@ -89,20 +100,21 @@ class FutureEnvSrc(object):
         features = load_data(symbol=symbol, start=start, end=end)
         df = pd.DataFrame()
         prices = (features['askprice'] + features['bidprice']) / 2
-        df['return'] = scaler(prices.pct_change())
+        df['return'] = prices.pct_change()
         df['spread'] = scaler(features['askprice'] - features['bidprice'])
         df['vadd']   = scaler(features['askvol'] + features['bidvol'])
         df['vplus']  = scaler(features['askvol'] / features['bidvol'])
         df.dropna(axis=0, inplace=True)
         df.reset_index(drop=True, inplace=True)
         self.count = df.shape[0]
-        print(self.count)
         self.min_values = df.min(axis=0)
         self.max_values = df.max(axis=0)
         self.data = df
         self.step = 0
         self.orgin_idx = 0
         self.prices = prices
+        print(df.head(5))
+        print(df.tail(5))
     
     def get_count(self):
         return self.count
@@ -112,7 +124,6 @@ class FutureEnvSrc(object):
         #     self.idx = np.random.randint(low=0, high=len(self.data.index) - self.days)
         # else:
         self.idx = 0
-        #self.idx = 0
         self.step = 0
         self.orgin_idx = self.idx  # for render , so record it
         #self.reset_start_time = str(self.data.index[self.orgin_idx -1 ])[:10]
@@ -163,8 +174,8 @@ class TradingSim(object):
 
     def _step(self, action, retrn, prices):
         bod_posn = 0.0 if self.step == 0 else self.posns[self.step - 1]
-        bod_nav = 1.0 if self.step == 0 else self.navs[self.step - 1]
-        mkt_nav = 1.0 if self.step == 0 else self.mkt_nav[self.step - 1]
+        bod_nav  = 1.0 if self.step == 0 else self.navs[self.step - 1]
+        mkt_nav  = 1.0 if self.step == 0 else self.mkt_nav[self.step - 1]
 
         self.mkt_retrns[self.step] = retrn
         self.actions[self.step] = action
@@ -172,30 +183,30 @@ class TradingSim(object):
         self.posns[self.step] = action - 1
         self.trades[self.step] = self.posns[self.step] - bod_posn
 
-        trade_costs_pct = abs(self.trades[self.step]) * self.trading_cost_bps
+        trade_costs_pct = abs(self.trades[self.step]) * (0 if action == 1 else self.trading_cost_bps)
         self.costs[self.step] = trade_costs_pct + self.time_cost_bps
         reward = ((bod_posn * retrn) - self.costs[self.step])
         self.strat_retrns[self.step] = reward
 
         ########################################################################################################################################################
         #print "step----:",self.step," retrn:", retrn,action,bod_posn,self.costs[self.step]," reward:",reward
-        areward = 0
-        self.signal[self.step] = self.posns[self.step] * 10
-        # #print self.signal[self.step],self.posns[self.step],action
-        if  self.step > 0:
-             if self.signal[self.step] != self.signal[self.step - 1]:
-                 i = 1
-                 while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
-                     i += 1
-                 areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
-             reward = areward
+        # areward = 0
+        # self.signal[self.step] = self.posns[self.step] * 10
+        # # #print self.signal[self.step],self.posns[self.step],action
+        # if  self.step > 0:
+        #      if self.signal[self.step] != self.signal[self.step - 1]:
+        #          i = 1
+        #          while self.signal[self.step - i] == self.signal[self.step - 1 - i] and self.step - 1 - i > 0:
+        #              i += 1
+        #          areward = (prices[self.step - 1] - prices[self.step - i - 1]) * self.signal[self.step - 1] * 100  # + i*np.abs(signal[time_step - 1])/10.0
+        #      reward = areward
         #########################################################################################################################################################
-        # reward = reward * 100
+        #reward = reward * 100
         if self.step != 0:
             self.navs[self.step] = bod_nav * (1 + self.strat_retrns[self.step - 1])
             self.mkt_nav[self.step] = mkt_nav * (self.mkt_retrns[self.step - 1])
             #print mkt_nav,self.mkt_retrns[self.step - 1], self.mkt_nav[self.step]
-        if self.step == 100:
+        if self.step % 100 == 0:
             print(
                 "debug ----- :step:%d,retrn:%f,action:%d,bod_posn,%d,posn:%d,trades:%d,trade_costs_pct:%f,costs:%f,reward:%f,bod_nav:%f,mkt_nav:%f," % (
                     self.step,
@@ -268,7 +279,7 @@ class TradingEnv(gym.Env):
     def initialise(self, symbol, start, end , random=True):
         self.src = FutureEnvSrc(symbol=symbol, start=start, end=end)
         print(self.src.get_count())
-        self.sim = TradingSim(steps=self.src.get_count(), trading_cost_bps=1e-4, time_cost_bps=1e-4)  # TODO FIX
+        self.sim = TradingSim(steps=self.src.get_count(), trading_cost_bps=1e-5, time_cost_bps=1e-10)  # TODO FIX
         
         self.action_space = spaces.Discrete(3)
         self.observation_space = spaces.Box(self.src.min_values,
@@ -356,12 +367,9 @@ class TradingEnv(gym.Env):
         self._plot_trades()
         plt.suptitle("Code: " + self.src.symbol + ' ' + \
                      "Round:" + str(self.reset_count) + "-" + \
-                     "Step:" + str(self.src.idx - self.src.orgin_idx) + "  (" + \
-                     "from:" + self.src.reset_start_day + " " + \
-                     "to:" + self.src.reset_end_day + ")")
+                     "Step:" + str(self.src.idx - self.src.orgin_idx) +  ")")
         plt.pause(0.001)
         print("############1")
-        
         return self.fig
     
     def run_strat(self, strategy, return_df=True):
